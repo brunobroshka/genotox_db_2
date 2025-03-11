@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GTDBQ GenoTox DataBase Query">
+    <title>GTDBQ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 800px;
+            width: 90%;
+            margin: 0 auto;
+            flex: 1;
+        }
+
+        h1 {
+            color: #4CAF50;
+            font-size: 2em;
+        }
+
+        .error-message {
+            color: red;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        form {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        form input,
+        form button {
+            display: block;
+            margin: 10px 0;
+            padding: 12px;
+            width: calc(100% - 22px);
+            font-size: 1.2em;
+            box-sizing: border-box;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        form input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        .table-container {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        footer {
+            background-color: #f0f0f0;
+            padding: 20px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        footer p {
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>GenoTox DataBase Query</h1>
+
+        {% if error_message %}
+        <p class="error-message">{{ error_message }}</p>
+        {% endif %}
+
+        {% if table %}
+        <div class="table-container">
+            <h3>Loaded Excel Data:</h3>
+            {{ table|safe }}
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <label for="cas_rn">CAS Number:</label>
+            <input type="text" id="cas_rn" name="cas_rn" placeholder="Enter CAS number..." required>
+
+            <div class="checkbox-wrapper">
+                <label>
+                    <input type="checkbox" name="details"> Show All Details
+                </label>
+            </div>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <footer>
+        <p> 2025 GenoTox DataBase. Version "delta" 0.0.0.1 <br> The query process can extend up to 3 minutes, be patient please.<br> For maximum safety cross-check eChemPortal, Lhasa Vitic, Lhasa CDB.  </p>
+    </footer>
+
+</body>
+
+</html>

@@ -1,17 +1,16 @@
-import os
 import pandas as pd
 from django.shortcuts import render
 from django.http import HttpResponse
 from io import BytesIO
-import openpyxl
 from collections import OrderedDict
 import requests
 from django.http import JsonResponse
-import re
-
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 
 # Working directory
-wd= "C:/Users/s265626/Desktop/Trasferimento_dati_BB"
+wd= "C:/Users/adria/UPF/genotox_db_2"
 
 # Constants for file paths 
 DEEPAMES_FILE = f"{wd}/myproject/media/DeepAmes.xlsx"  # Update with your actual path
@@ -1303,219 +1302,113 @@ def progress_view(request):
     else:
         return JsonResponse({'message': 'No progress information available'})
 
-def query_view(request):
-
-  if request.method == 'POST':
-
-    cas_rn = request.POST.get('cas_rn')
-
-    details = request.POST.get('details')
-
-    if cas_validation(cas_rn) == True:
-
-      inchi_key = str(fetch_url_content(cas_rn)).replace('InChIKey=', '') # Get the InChIKey from the form
-
-      inchi_key_fetched=True
-
-      results = {}
-
-      if cas_rn:
-
-        results.update({
-
-          'DeepAmes': query_deepames(cas_rn),
-
-          'Hansen': query_hansen(cas_rn),
-
-          'OECD_vivo': query_oecd_vivo(cas_rn),
-
-          'OECD_Chromosome_vitro': query_oecd_chromosome(cas_rn),
-
-          'IARC': query_iarc(cas_rn),
-
-          'PPRTV&IRIS': query_IRIS_PPRTV(cas_rn),
-
-          'HOMNA': query_homna(cas_rn),
-
-        })
-
-      amescebs_summary, amescebs_supersummary = query_amescebs(cas_rn,details)
-      results['AMESCEBS_supersummary'] = amescebs_supersummary
-      results['AMESCEBS_summary'] = amescebs_summary
-
-
-      opf_genotox_summary, opf_genotox_ref, opf_refpoint_ref, opf_refvalue_ref = query_openfoodtox(cas_rn)
-      results['OpenFoodTox_genotox_summary'] = opf_genotox_summary
-      results['OpenFoodTox_genotox_ref'] = opf_genotox_ref
-      results['OpenFoodTox_refpoint_ref'] = opf_refpoint_ref
-      results['OpenFoodTox_refvalue_ref'] = opf_refvalue_ref
-
-      ecvam_neg_results = query_ecvam_neg(cas_rn)
-      if ecvam_neg_results:
-        results.update(ecvam_neg_results)
-
-
-      ecvam_pos_results = query_ecvam_pos(cas_rn, details)
-      if ecvam_pos_results:
-        results.update(ecvam_pos_results)
-
-      if inchi_key:
-
-        ccris_dg, ccris_summary = query_ccris(inchi_key,details)
-        if details=='on' and ccris_dg is not None:
-          for i,df in enumerate(ccris_dg):
-            if df is not None:
-              # print("++++++++prima+++++++")
-              # display(df)
-              df=add_cas_db_version_identificative(df,cas_rn,CCRIS_FILE)
-              df=df.transpose()
-              # display(df)
-              # Update the original ccris_dg list with the modified DataFrame
-              ccris_dg[i] = df  
-              # print("-----------dopo--------")
-        if ccris_summary is not None:
-          ccris_summary=add_cas_db_version_identificative(ccris_summary,cas_rn,CCRIS_FILE)
-          ccris_summary=ccris_summary.transpose()
-
-
-      results['CCRIS_Summary'] = ccris_summary
-      results['CCRIS_Data'] = ccris_dg
-
-
-
-      all_empty = all(result is None or (isinstance(result, tuple) and all(r is None or r.empty for r in result)) or (isinstance(result, pd.DataFrame) and result.empty) for result in results.values())
-
-
-
-      if all_empty:
-
-        return render(request, 'myapp/query.html', {'error_message': f"No data found for the provided identifier."})
-
-
-
-      output = BytesIO()
-
-      with pd.ExcelWriter(output, engine='openpyxl') as writer:
-
-        for sheet_name, result in results.items():
-
-          if result is not None:
-
-            if sheet_name == 'CCRIS_Summary': # Handle CCRIS Summary separately
-
-              for col in result.select_dtypes(include=['object']).columns: # result is summary_df
-
-                try:
-
-                  result[col] = result[col].astype(str)
-
-                except Exception as e:
-
-                  print(f"Error converting column {col} in CCRIS_Summary: {e}")
-
-                  result[col] = result[col].fillna("N/A")
-
-              result.to_excel(writer, sheet_name='CCRIS_Summary', index=True)
-
-
-
-            elif sheet_name == 'CCRIS_Data' and details == 'on': # Handle CCRIS Data (dg_list) separately
-
-              dg_list = result # result is ccris_dg
-
-              if dg_list is not None:
-
-                for index, dg in enumerate(dg_list):
-
-                  if not dg.empty:
-
-                    for col in dg.select_dtypes(include=['object']).columns:
-
-                      try:
-
-                        dg[col] = dg[col].astype(str)
-
-                      except Exception as e:
-
-                        print(f"Error converting column {col} in CCRIS_Details_{index}: {e}")
-
-                        dg[col] = dg[col].fillna("N/A")
-
-                    dg.to_excel(writer, sheet_name=f'CCRIS_Details_{index}', index=True)
-
-              if sheet_name == 'AMESCEBS_supersummary':
-                for col in result.select_dtypes(include=['object']).columns:
-                  try:
-                    result[col] = result[col].astype(str)
-                  except Exception as e:
-                    print(f"Error converting column {col} in AMESCEBS_supersummary: {e}")
-                    result[col] = result[col].fillna("N/A")
-                result.to_excel(writer, sheet_name='AMESCEBS_supersummary', index=True)
-
-              if sheet_name == 'AMESCEBS_summary':
-                for col in result.select_dtypes(include=['object']).columns:
-                  try:
-                    result[col] = result[col].astype(str)
-                  except Exception as e:
-                    print(f"Error converting column {col} in AMESCEBS_summary: {e}")
-                    result[col] = result[col].fillna("N/A")
-                result.to_excel(writer, sheet_name='AMESCEBS_summary', index=True)
-
-
-            elif isinstance(result, dict):  # Handle dictionaries of DataFrames (like for ECVAM)
-                          for sub_sheet_name, sub_result in result.items():
-                              if isinstance(sub_result, pd.DataFrame) and not sub_result.empty:
-                                  for col in sub_result.select_dtypes(include=['object']).columns:
-                                      try:
-                                          sub_result[col] = sub_result[col].astype(str)
-                                      except Exception as e:
-                                          print(f"Error converting column {col} in {sheet_name}: {e}")
-                                          sub_result[col] = sub_result[col].fillna("N/A")
-                                  sub_result.to_excel(writer, sheet_name=sub_sheet_name, index=True) #index=True to maintain the index in the excel file          
-
-
-            elif isinstance(result, pd.Series) and not result.empty: # Export Series
-              result.to_excel(writer, sheet_name=sheet_name, index=True)
-
-
-
-            elif isinstance(result, pd.DataFrame) and not result.empty: # Handle other DataFrames
-
-              for col in result.select_dtypes(include=['object']).columns:
-
-                try:
-
-                  result[col] = result[col].astype(str)
-
-                except Exception as e:
-
-                  print(f"Error converting column {col} in {sheet_name}: {e}")
-
-                  result[col] = result[col].fillna("N/A")
-
-              result.to_excel(writer, sheet_name=sheet_name, index=True)
-
-
-
-
-      output.seek(0)
-
-
-
-      response = HttpResponse(
-
-        output.getvalue(),
-
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-
-      )
-
-      response['Content-Disposition'] = f'attachment; filename="{cas_rn}_results.xlsx"'
-
-      return response
-
-    else:
-      return render(request, 'myapp/query.html', {'error_message': f"Invalid CAS number."})
-
-
-  return render(request, 'myapp/query.html')
+class QueryAPIView(APIView):
+ def post(self, request, format=None):
+        # get data from the user frontend interface
+        cas_rn = request.data.get('cas_rn')
+        details = bool(request.data.get('details'))
+        print("cas_rn:")
+        print(cas_rn)
+        print("details")
+        print(type(details))
+        # Validación básica del CAS
+        if not cas_rn or not cas_validation(cas_rn):
+            return Response({"error": "CAS number inválido."}, status=status.HTTP_400_BAD_REQUEST)
+
+       
+        inchi_key = str(fetch_url_content(cas_rn)).replace('InChIKey=', '')
+        inchi_key_fetched = True
+        results = {}
+
+        if cas_rn:
+            results.update({
+                'DeepAmes': query_deepames(cas_rn),
+                'Hansen': query_hansen(cas_rn),
+                'OECD_vivo': query_oecd_vivo(cas_rn),
+                'OECD_Chromosome_vitro': query_oecd_chromosome(cas_rn),
+                'IARC': query_iarc(cas_rn),
+                'PPRTV&IRIS': query_IRIS_PPRTV(cas_rn),
+                'HOMNA': query_homna(cas_rn),
+            })
+
+        amescebs_summary, amescebs_supersummary = query_amescebs(cas_rn, details)
+        results['AMESCEBS_supersummary'] = amescebs_supersummary
+        results['AMESCEBS_summary'] = amescebs_summary
+
+        opf_genotox_summary, opf_genotox_ref, opf_refpoint_ref, opf_refvalue_ref = query_openfoodtox(cas_rn)
+        results['OpenFoodTox_genotox_summary'] = opf_genotox_summary
+        results['OpenFoodTox_genotox_ref'] = opf_genotox_ref
+        results['OpenFoodTox_refpoint_ref'] = opf_refpoint_ref
+        results['OpenFoodTox_refvalue_ref'] = opf_refvalue_ref
+
+        ecvam_neg_results = query_ecvam_neg(cas_rn)
+        if ecvam_neg_results:
+            results.update(ecvam_neg_results)
+
+        ecvam_pos_results = query_ecvam_pos(cas_rn, details)
+        if ecvam_pos_results:
+            results.update(ecvam_pos_results)
+
+        if inchi_key:
+            ccris_dg, ccris_summary = query_ccris(inchi_key, details)
+            if details == 'on' and ccris_dg is not None:
+                for i, df in enumerate(ccris_dg):
+                    if df is not None:
+                        df = add_cas_db_version_identificative(df, cas_rn, CCRIS_FILE)
+                        df = df.transpose()
+                        ccris_dg[i] = df  
+            if ccris_summary is not None:
+                ccris_summary = add_cas_db_version_identificative(ccris_summary, cas_rn, CCRIS_FILE)
+                ccris_summary = ccris_summary.transpose()
+
+            results['CCRIS_Summary'] = ccris_summary
+            results['CCRIS_Data'] = ccris_dg
+
+
+        all_empty = all(result is None or 
+                        (isinstance(result, tuple) and all(r is None or (hasattr(r, 'empty') and r.empty) for r in result)) or 
+                        (hasattr(result, 'empty') and result.empty)
+                        for result in results.values())
+        if all_empty:
+            return Response({"error": "No se encontraron datos para el identificador proporcionado."}, status=status.HTTP_404_NOT_FOUND)
+
+      
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            for sheet_name, result in results.items():
+                if result is not None:
+                   
+                    if sheet_name == 'CCRIS_Summary' and hasattr(result, 'to_excel'):
+                        for col in result.select_dtypes(include=['object']).columns:
+                            try:
+                                result[col] = result[col].astype(str)
+                            except Exception as e:
+                                result[col] = result[col].fillna("N/A")
+                        result.to_excel(writer, sheet_name='CCRIS_Summary', index=True)
+                    elif sheet_name == 'CCRIS_Data' and details == 'on':
+                        dg_list = result
+                        if dg_list is not None:
+                            for index, dg in enumerate(dg_list):
+                                if not dg.empty:
+                                    for col in dg.select_dtypes(include=['object']).columns:
+                                        try:
+                                            dg[col] = dg[col].astype(str)
+                                        except Exception as e:
+                                            dg[col] = dg[col].fillna("N/A")
+                                    dg.to_excel(writer, sheet_name=f'CCRIS_Details_{index}', index=True)
+                    elif hasattr(result, 'to_excel'):
+                        for col in result.select_dtypes(include=['object']).columns:
+                            try:
+                                result[col] = result[col].astype(str)
+                            except Exception as e:
+                                result[col] = result[col].fillna("N/A")
+                        result.to_excel(writer, sheet_name=sheet_name, index=True)
+                   
+        output.seek(0)
+
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{cas_rn}_results.xlsx"'
+        return response

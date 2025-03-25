@@ -1,9 +1,8 @@
 from django.urls import path
 from . import views
-
+from .views import QueryAPIView
 urlpatterns = [
-    path('query/', views.query_view, name='query_view'),
-    path('', views.query_view, name='root_query'),  # Default route for query view
+    path('query/', QueryAPIView.as_view(), name='query_api'),
 ]
 
 

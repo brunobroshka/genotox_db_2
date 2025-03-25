@@ -1307,11 +1307,7 @@ class QueryAPIView(APIView):
         # get data from the user frontend interface
         cas_rn = request.data.get('cas_rn')
         details = bool(request.data.get('details'))
-        print("cas_rn:")
-        print(cas_rn)
-        print("details")
-        print(type(details))
-        # Validación básica del CAS
+     
         if not cas_rn or not cas_validation(cas_rn):
             return Response({"error": "CAS number inválido."}, status=status.HTTP_400_BAD_REQUEST)
 

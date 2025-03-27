@@ -1,7 +1,14 @@
+<<<<<<< HEAD
+=======
+# genotox_db_2
+Initial repository with the Django app developed in the first 3 months. Second attempt.
+
+>>>>>>> a0ae60c77b496b4b1e4b4842a8ba23c502697559
 # genotox_db_query
 Initial repository with the Django app developed in the first 3 months 
 
 
+<<<<<<< HEAD
 ## template 
 the basic HTML template is stored at: myproject/myapp/templates
 it's a very basic HTML code to have an initial GUI
@@ -9,6 +16,15 @@ the point is to create an user frendly GUI to have as input CAS and details, as 
 
 ## script
 The python script that runs the backend is in: myproject/myapp/views.py
+=======
+# template
+the basic HTML template is stored at: myfullapp/myapp/templates
+it's a very basic HTML code to have an initial GUI
+the point is to create an user frendly GUI to have as input CAS and details, as output a collection of tables and not the excel file I download right now
+
+# script
+The python script that runs the backend is in: myfullapp/myapp/views.py
+>>>>>>> a0ae60c77b496b4b1e4b4842a8ba23c502697559
 The script is organized like this:
 - imports
 - db in local upload (you have to modify the working directory)
@@ -17,6 +33,7 @@ The script is organized like this:
 - query functions of db imported and cleaned
 - django main function called query_view() function
 
+<<<<<<< HEAD
 ## urls
 the urls are specified in: myproject/myapp/urls.py
 
@@ -36,3 +53,13 @@ Pequeno tutorial para darle un run a la app:
 
 Por qualquier cosa me puedes escribir o ne hablaremos cuando nos vemos en la oficina.
 Gracias amigo! :DD
+=======
+# urls
+the urls are specified in: myfullapp/myapp/urls.py
+
+# runs
+to run it in admin mode the command line is manage.py runserver
+
+# media
+DB have been updated. They are not confidential.
+>>>>>>> a0ae60c77b496b4b1e4b4842a8ba23c502697559

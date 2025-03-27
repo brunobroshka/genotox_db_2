@@ -1,9 +1,6 @@
 # genotox_db_2
 Initial repository with the Django app developed in the first 3 months. Second attempt.
 
-# genotox_db_query
-Initial repository with the Django app developed in the first 3 months 
-
 ## template 
 the basic HTML template is stored at: myproject/myapp/templates
 it's a very basic HTML code to have an initial GUI

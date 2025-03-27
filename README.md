@@ -1,6 +1,5 @@
-# genotox_db_query
-Initial repository with the Django app developed in the first 3 months 
-
+# genotox_db_2
+Initial repository with the Django app developed in the first 3 months. Second attempt.
 
 ## template 
 the basic HTML template is stored at: myproject/myapp/templates
@@ -9,6 +8,10 @@ the point is to create an user frendly GUI to have as input CAS and details, as 
 
 ## script
 The python script that runs the backend is in: myproject/myapp/views.py
+
+
+## script
+The python script that runs the backend is in: myfullapp/myapp/views.py
 The script is organized like this:
 - imports
 - db in local upload (you have to modify the working directory)

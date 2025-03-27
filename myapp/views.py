@@ -1,17 +1,18 @@
-import os
 import pandas as pd
+import numpy as np
 from django.shortcuts import render
 from django.http import HttpResponse
 from io import BytesIO
-import openpyxl
 from collections import OrderedDict
 import requests
 from django.http import JsonResponse
-import re
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 
 
 # Working directory
-wd= "C:/Users/s265626/Desktop/Trasferimento_dati_BB"
+wd= r"C:\Users\s265626\Downloads\genotox_db_2"
 
 # Constants for file paths 
 DEEPAMES_FILE = f"{wd}/myproject/media/DeepAmes.xlsx"  # Update with your actual path
@@ -236,7 +237,7 @@ def ccris_summary_table(dt):
         negatives = group['Results'].str.contains('NEGATIVE', case=False).sum()
         equivocals = group['Results'].str.contains('EQUIVOCAL', case=False).sum()
 
-        result = f"P\n/E= {positives} / {negatives} / {equivocals}"
+        result = f"P/N/E= {positives} / {negatives} / {equivocals}"
 
         if positives != 0 and negatives != 0:
             summary_call = 'Conflicted'
@@ -244,7 +245,7 @@ def ccris_summary_table(dt):
             summary_call = 'Positive'
         elif negatives != 0 and positives == 0:
             summary_call = 'Negative'
-        elif result == 'P\n/E= 0 / 0 / 0':
+        elif result == 'P/N/E= 0 / 0 / 0':
             summary_call = 'N/D'
 
         summarized_data.append([test_system, ames_strains, result, summary_call])
@@ -273,10 +274,10 @@ def cebs_supersummary_table(dt):
         summary_call = 'Negative'
     elif negatives != 0 and positives == 0 and equivocals != 0:
         summary_call = 'Equivocal'
-    # elif result == 'P\n/E= 0 / 0 / 0':  # This condition is always false, because result is defined after this if
+    # elif result == 'P/N/E= 0 / 0 / 0':  # This condition is always false, because result is defined after this if
     #     summary_call = 'N/D' # removed this condition because it is redundant.
 
-    result = f"{summary_call}, P\n/E= {positives} / {negatives} / {equivocals}"
+    result = f"{summary_call}, P/N/E= {positives} / {negatives} / {equivocals}"
 
     unique_strains = ', '.join(dt['Strain'].unique())
 
@@ -306,7 +307,7 @@ def cebs_summary_table(dt):
         elif negatives != 0 and positives == 0 and equivocals != 0:
             summary_call = 'Equivocal'
 
-        result = f"P\n/E= {positives} / {negatives} / {equivocals}"
+        result = f"P/N/E= {positives} / {negatives} / {equivocals}"
 
         summarized_data.append([strain, s9_condition, result, summary_call])
 
@@ -335,7 +336,7 @@ def genotox_openfoodtox(cas_rn,subst_name,genotox_df,outputs_df):
       D_structure='No 2D structure found'
       print(f"OpenFoodTox: No smiles found for CAS_NO: {cas_rn}")
 
-    # Calculate P\n/E counts for all strains
+    # Calculate P/N/E counts for all strains
     positives = dt_genotox['Genotoxicity'].str.contains('Positive', case=False).sum()
     negatives = dt_genotox['Genotoxicity'].str.contains('Negative', case=False).sum()
     equivocals = dt_genotox['Genotoxicity'].str.contains('Equivocal|Ambiguous', case=False).sum()
@@ -353,7 +354,7 @@ def genotox_openfoodtox(cas_rn,subst_name,genotox_df,outputs_df):
     elif negatives==0 and positives==0 and equivocals==0:
       summary_call= 'N/D'
 
-    result =  f"{summary_call}, P\n/E= {positives} / {negatives} / {equivocals}"
+    result =  f"{summary_call}, P/N/E= {positives} / {negatives} / {equivocals}"
 
 
 
@@ -845,7 +846,7 @@ def ECVAM_neg_summary_table(dt,cas_rn):
         N+=1
       elif 'E' in str(dt[col].iloc[0]):
         E+=1
-  pne=(f" P\n/E= {P}/{N}/{E}")
+  pne=(f" P/N/E= {P}/{N}/{E}")
 
 
   P=0
@@ -860,7 +861,7 @@ def ECVAM_neg_summary_table(dt,cas_rn):
       elif 'E' in str(dt[col].iloc[0]):
         E+=1
 
-  vit_overall= (f" P\n/E = {P}/{N}/{E}")
+  vit_overall= (f" P/N/E = {P}/{N}/{E}")
 
   P=0
   N=0
@@ -877,7 +878,7 @@ def ECVAM_neg_summary_table(dt,cas_rn):
 
 
 
-  viv_overall=(f" P\n/E = {P}/{N}/{E}")
+  viv_overall=(f" P/N/E = {P}/{N}/{E}")
 
   summary_df=pd.DataFrame({ 'Ames_Overall' :(str(dt['AMES Overall'].iloc[0])+ ' '+ str(pne)), 'vitro_overall':vit_overall , 'vivo_overall':viv_overall , 'CARC_overall':dt['Rodent Carcinogenicity Overall'].iloc[0] ,'IARC':dt['IARC Classification'].iloc[0]}, index=[cas_rn])
   return summary_df
@@ -1113,7 +1114,7 @@ def ECVAM_pos_overall(cas_rn,details):
           negative+=1
         elif 'E' in str(dt[col].iloc[0]):
           equivocal+=1
-    pne=(f" P\n/E= {positive} / {negative} / {equivocal} ")
+    pne=(f" P/N/E= {positive} / {negative} / {equivocal} ")
     pd.options.mode.copy_on_write = True
     a=str(f" {dt['Ames Overall '].iloc[0]}  {str(pne)}")
     summary_df=pd.DataFrame([{ 'Ames_Overall' :a, 'vitro_overall':vitro_overall , 'vivo_overall':vivo_overall , 'CARC_overall':dt['CARC Overall '].iloc[0] }], index=[cas_rn])
@@ -1218,7 +1219,7 @@ def ECVAM_pos_overall(cas_rn,details):
 
         lit_table=pd.DataFrame(data=list(lit_array), columns=['List of References'])
         lit_table=lit_table.dropna(axis='columns',how='all',inplace=True)
-        if (not lit_table.empty) or (lit_table is not None):
+        if (lit_table is not None):
           lit_table=lit_table
         else:
           lit_table=None
@@ -1236,41 +1237,89 @@ def ECVAM_pos_overall(cas_rn,details):
     return None,None,None,None,None,None,None,None,None,None,None,None,None
 
 
-# --- CAS VALIDATE ----
-
-def cas_validation(cas):
-	import sys, re
-	"""Validates if a provided CAS number could exist"""
-
-	try:
-		cas_match = re.search(r'(\d+)-(\d\d)-(\d)',cas) # Takes into account the standard CAS formatting e.g. 7732-18-5
-		cas_string = cas_match.group(1) + cas_match.group(2) + cas_match.group(3)
-
-		increment = 0
-		sum_cas = 0
-
-		# Slices the reversed number string
-		for number in reversed(cas_string):
-			if increment == 0:
-				validate = int(number)
-				increment = increment + 1
-			else:
-				sum_cas = sum_cas + (int(number) * increment)
-				increment = increment + 1
-
-		# Does the math
-		if validate == sum_cas % 10:
-			print('True') # Can be removed if not used on Terminal
-			return True
-		else: 
-			print('False') # Can be removed if not used on Terminal
-			return False
-	except:
-		print('False') # Choose the action for errors you like
-		return False
 
 
 
+
+
+### FUNCTIONS FOR THE PROCESS API VIEW ###
+
+def clean_dataframe(df):
+    # Replace NaN, empty string, and whitespace-only with "NR"
+    df = df.replace([np.nan, "", " "], "NR")
+    return df
+
+def is_empty_table(df):
+    # Check if all values are "NR" or NaN
+    return df.apply(lambda x: x.isin(["NR", np.nan])).all().all()
+
+def process_results(results):
+    processed_data = {}
+
+    for key, value in results.items():
+        if isinstance(value, pd.DataFrame):
+            if not is_empty_table(value):
+                value = clean_dataframe(value)
+                if isinstance(value.index, pd.MultiIndex):  # Check if MultiIndex
+                    processed_data[key] = {
+                        "data": value.reset_index().to_dict(orient="split"),
+                        "is_multiindex": True,  # Store flag for MultiIndex restoration
+                    }
+                else:
+                    processed_data[key] = value.to_dict(orient='split')
+
+        elif isinstance(value, list) and all(isinstance(df, pd.DataFrame) for df in value):
+            processed_list = []
+            for df in value:
+                if not is_empty_table(df):
+                    df = clean_dataframe(df)
+                    if isinstance(df.index, pd.MultiIndex):
+                        processed_list.append({
+                            "data": df.reset_index().to_dict(orient="split"),
+                            "is_multiindex": True,
+                        })
+                    else:
+                        processed_list.append(df.to_dict(orient="split"))
+            if processed_list:
+                processed_data[key] = processed_list
+        else:
+            processed_data[key] = value
+
+    return processed_data
+
+
+
+# --- CAS VALIDATION ---
+def is_valid_cas(cas_number: str) -> bool:
+    """
+    Validates a CAS (Chemical Abstracts Service) Registry Number.
+
+    Args:
+        cas_number (str): The CAS number as a string (e.g., "50-00-0").
+    
+    Returns:
+        bool: True if the CAS number is valid, False otherwise.
+    """
+    
+    import re
+    
+    # Check CAS format using regex (XXX-XX-X or XXXX-XX-X etc.)
+    if not re.match(r"^\d{2,7}-\d{2}-\d$", cas_number):
+        return False  # Invalid format
+    
+    # Split into parts
+    parts = cas_number.split("-")
+    main_part = "".join(parts[:-1])  # First two sections as a single string
+    checksum_digit = int(parts[-1])  # Last part is the checksum
+
+    # Compute the checksum
+    reversed_digits = list(map(int, reversed(main_part)))
+    checksum_calculated = sum((i + 1) * digit for i, digit in enumerate(reversed_digits)) % 10
+
+    # Validate checksum
+    return checksum_calculated == checksum_digit
+    
+    
 # --- CAS TO INCHI-KEY ---
 def generate_url(cas_number):
     """Generates the URL for the NCI Cactus API."""
@@ -1285,8 +1334,7 @@ def fetch_url_content(cas_number):
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
         return response.text
     except requests.exceptions.RequestException as e:
-        return f"Error retrieving data for CAS {cas_number}: {e}"  # More informative error message
-
+        return f"Error retrieving data for CAS {cas_number}: {e}"  # More informative error message    
 
 
 # --- Django View ---
@@ -1302,220 +1350,184 @@ def progress_view(request):
         return JsonResponse(request.session['progress'])
     else:
         return JsonResponse({'message': 'No progress information available'})
+        
+        
+        
+        
+
+import json
+import numpy as np
+import pandas as pd
+from io import BytesIO
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.views import APIView
+from django.http import HttpResponse
+
+class ProcessAPIView(APIView):
+    def post(self, request, format=None):
+        cas_rn = request.data.get('cas_rn')
+        details = request.data.get('details')
+
+        if not cas_rn or not is_valid_cas(cas_rn):
+            return Response({"error": "invalid CAS number"}, status=status.HTTP_400_BAD_REQUEST)
+
+        inchi_key = str(fetch_url_content(cas_rn)).replace('InChIKey=', '')
+        results = {}
+
+        if cas_rn:
+            results.update({
+                'DeepAmes': query_deepames(cas_rn),
+                'Hansen': query_hansen(cas_rn),
+                'OECD_vivo': query_oecd_vivo(cas_rn),
+                'OECD_Chromosome_vitro': query_oecd_chromosome(cas_rn),
+                'IARC': query_iarc(cas_rn),
+                'PPRTV&IRIS': query_IRIS_PPRTV(cas_rn),
+                'HOMNA': query_homna(cas_rn),
+            })
+
+        amescebs_summary, amescebs_supersummary = query_amescebs(cas_rn, details)
+        results['AMESCEBS_supersummary'] = amescebs_supersummary
+        results['AMESCEBS_summary'] = amescebs_summary
+
+        opf_genotox_summary, opf_genotox_ref, opf_refpoint_ref, opf_refvalue_ref = query_openfoodtox(cas_rn)
+        results['OpenFoodTox_genotox_summary'] = opf_genotox_summary
+        results['OpenFoodTox_genotox_ref'] = opf_genotox_ref
+        results['OpenFoodTox_refpoint_ref'] = opf_refpoint_ref
+        results['OpenFoodTox_refvalue_ref'] = opf_refvalue_ref
+
+        ecvam_neg_results = query_ecvam_neg(cas_rn)
+        if ecvam_neg_results:
+            results.update(ecvam_neg_results)
+
+        ecvam_pos_results = query_ecvam_pos(cas_rn, details)
+        if ecvam_pos_results:
+            results.update(ecvam_pos_results)
+
+        if inchi_key:
+            ccris_dg, ccris_summary = query_ccris(inchi_key, details)
+            if details == 'on' and ccris_dg:
+                for i, df in enumerate(ccris_dg):
+                    if isinstance(df, pd.DataFrame):
+                        df = add_cas_db_version_identificative(df, cas_rn, CCRIS_FILE)
+                        df = df.transpose()
+                        df.replace({np.nan: None}, inplace=True)  # Fix NaN issue
+                        ccris_dg[i] = df  
+
+            if isinstance(ccris_summary, pd.DataFrame):
+                ccris_summary = add_cas_db_version_identificative(ccris_summary, cas_rn, CCRIS_FILE)
+                ccris_summary = ccris_summary.transpose()
+                ccris_summary.replace({np.nan: None}, inplace=True)  # Fix NaN issue
+
+            results['CCRIS_Summary'] = ccris_summary
+            results['CCRIS_Data'] = ccris_dg
+
+        # Ensure there is at least some data
+        all_empty = all(result is None or 
+                        (isinstance(result, tuple) and all(r is None or (hasattr(r, 'empty') and r.empty) for r in result)) or 
+                        (hasattr(result, 'empty') and result.empty)
+                        for result in results.values())
+
+        if all_empty:
+            return Response({"error": "No data for the CAS submitted"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Process and clean the results
+        processed_data = process_results(results)
+    
+        return Response({
+            "cas_rn": cas_rn,
+            "data": processed_data,
+            "download_ready": True
+        }, status=status.HTTP_200_OK)
+
+
+class DownloadAPIView(APIView):
+    def post(self, request, format=None):
+        try:
+            data = request.data.get('data', {})
+            cas_rn = request.data.get('cas_rn', 'unknown')
+
+            results = {}
+
+            for sheet_name, sheet_data in data.items():
+                print(f"Processing sheet: {sheet_name}, Type: {type(sheet_data)}")  # Debugging
+                
+                # Handling PPRTV&IRIS Multi-Index case
+                if isinstance(sheet_data, dict) and "is_multiindex" in sheet_data and sheet_data["is_multiindex"]:
+                    sheet_data = sheet_data["data"]  # Extract actual data dictionary
+
+                if isinstance(sheet_data, dict) and 'data' in sheet_data:
+                    # Extracting columns and index safely
+                    if 'columns' not in sheet_data or 'index' not in sheet_data:
+                        raise KeyError(f"Missing 'columns' or 'index' key in sheet: {sheet_name}")
+
+                    columns = [str(c) for c in sheet_data['columns']]
+                    index = sheet_data['index']
+
+                    # Handle Multi-Index case
+                    if isinstance(index[0], (list, tuple)):
+                        index = pd.MultiIndex.from_tuples(index)
+
+                    df = pd.DataFrame(
+                        data=sheet_data['data'],
+                        columns=columns,
+                        index=index
+                    )
+
+                    df.replace({None: np.nan}, inplace=True)  # Handle missing values
+                    results[sheet_name] = df
+
+                elif isinstance(sheet_data, list):
+                    reconstructed_list = []
+                    for item in sheet_data:
+                        if isinstance(item, dict) and 'data' in item and 'columns' in item:
+                            columns = [str(c) for c in item["columns"]]
+                            index = item.get("index", None)
+
+                            # Handle Multi-Index case
+                            if isinstance(index, list) and isinstance(index[0], (list, tuple)):
+                                index = pd.MultiIndex.from_tuples(index)
+
+                            df = pd.DataFrame(
+                                data=item["data"],
+                                columns=columns,
+                                index=index
+                            )
+                            df.replace({None: np.nan}, inplace=True)
+                            reconstructed_list.append(df)
+
+                    results[sheet_name] = reconstructed_list
+                
+                else:
+                    results[sheet_name] = sheet_data
+
+            # Generate Excel file
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                for sheet_name, result in results.items():
+                    if isinstance(result, pd.DataFrame):
+                        result.to_excel(writer, sheet_name=sheet_name[:31], index=True)
+                    elif isinstance(result, list):
+                        for idx, df in enumerate(result):
+                            df.to_excel(writer, sheet_name=f"{sheet_name[:28]}_{idx}", index=True)
+
+            output.seek(0)
+
+            response = HttpResponse(
+                output.getvalue(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{cas_rn}_results.xlsx"'
+            return response
+
+        except KeyError as e:
+            return Response(
+                {"error": f"Missing key error: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Error generating Excel file: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-def query_view(request):
-
-  if request.method == 'POST':
-
-    cas_rn = request.POST.get('cas_rn')
-
-    details = request.POST.get('details')
-
-    if cas_validation(cas_rn) == True:
-
-      inchi_key = str(fetch_url_content(cas_rn)).replace('InChIKey=', '') # Get the InChIKey from the form
-
-      inchi_key_fetched=True
-
-      results = {}
-
-      if cas_rn:
-
-        results.update({
-
-          'DeepAmes': query_deepames(cas_rn),
-
-          'Hansen': query_hansen(cas_rn),
-
-          'OECD_vivo': query_oecd_vivo(cas_rn),
-
-          'OECD_Chromosome_vitro': query_oecd_chromosome(cas_rn),
-
-          'IARC': query_iarc(cas_rn),
-
-          'PPRTV&IRIS': query_IRIS_PPRTV(cas_rn),
-
-          'HOMNA': query_homna(cas_rn),
-
-        })
-
-      amescebs_summary, amescebs_supersummary = query_amescebs(cas_rn,details)
-      results['AMESCEBS_supersummary'] = amescebs_supersummary
-      results['AMESCEBS_summary'] = amescebs_summary
-
-
-      opf_genotox_summary, opf_genotox_ref, opf_refpoint_ref, opf_refvalue_ref = query_openfoodtox(cas_rn)
-      results['OpenFoodTox_genotox_summary'] = opf_genotox_summary
-      results['OpenFoodTox_genotox_ref'] = opf_genotox_ref
-      results['OpenFoodTox_refpoint_ref'] = opf_refpoint_ref
-      results['OpenFoodTox_refvalue_ref'] = opf_refvalue_ref
-
-      ecvam_neg_results = query_ecvam_neg(cas_rn)
-      if ecvam_neg_results:
-        results.update(ecvam_neg_results)
-
-
-      ecvam_pos_results = query_ecvam_pos(cas_rn, details)
-      if ecvam_pos_results:
-        results.update(ecvam_pos_results)
-
-      if inchi_key:
-
-        ccris_dg, ccris_summary = query_ccris(inchi_key,details)
-        if details=='on' and ccris_dg is not None:
-          for i,df in enumerate(ccris_dg):
-            if df is not None:
-              # print("++++++++prima+++++++")
-              # display(df)
-              df=add_cas_db_version_identificative(df,cas_rn,CCRIS_FILE)
-              df=df.transpose()
-              # display(df)
-              # Update the original ccris_dg list with the modified DataFrame
-              ccris_dg[i] = df  
-              # print("-----------dopo--------")
-        if ccris_summary is not None:
-          ccris_summary=add_cas_db_version_identificative(ccris_summary,cas_rn,CCRIS_FILE)
-          ccris_summary=ccris_summary.transpose()
-
-
-      results['CCRIS_Summary'] = ccris_summary
-      results['CCRIS_Data'] = ccris_dg
-
-
-
-      all_empty = all(result is None or (isinstance(result, tuple) and all(r is None or r.empty for r in result)) or (isinstance(result, pd.DataFrame) and result.empty) for result in results.values())
-
-
-
-      if all_empty:
-
-        return render(request, 'myapp/query.html', {'error_message': f"No data found for the provided identifier."})
-
-
-
-      output = BytesIO()
-
-      with pd.ExcelWriter(output, engine='openpyxl') as writer:
-
-        for sheet_name, result in results.items():
-
-          if result is not None:
-
-            if sheet_name == 'CCRIS_Summary': # Handle CCRIS Summary separately
-
-              for col in result.select_dtypes(include=['object']).columns: # result is summary_df
-
-                try:
-
-                  result[col] = result[col].astype(str)
-
-                except Exception as e:
-
-                  print(f"Error converting column {col} in CCRIS_Summary: {e}")
-
-                  result[col] = result[col].fillna("N/A")
-
-              result.to_excel(writer, sheet_name='CCRIS_Summary', index=True)
-
-
-
-            elif sheet_name == 'CCRIS_Data' and details == 'on': # Handle CCRIS Data (dg_list) separately
-
-              dg_list = result # result is ccris_dg
-
-              if dg_list is not None:
-
-                for index, dg in enumerate(dg_list):
-
-                  if not dg.empty:
-
-                    for col in dg.select_dtypes(include=['object']).columns:
-
-                      try:
-
-                        dg[col] = dg[col].astype(str)
-
-                      except Exception as e:
-
-                        print(f"Error converting column {col} in CCRIS_Details_{index}: {e}")
-
-                        dg[col] = dg[col].fillna("N/A")
-
-                    dg.to_excel(writer, sheet_name=f'CCRIS_Details_{index}', index=True)
-
-              if sheet_name == 'AMESCEBS_supersummary':
-                for col in result.select_dtypes(include=['object']).columns:
-                  try:
-                    result[col] = result[col].astype(str)
-                  except Exception as e:
-                    print(f"Error converting column {col} in AMESCEBS_supersummary: {e}")
-                    result[col] = result[col].fillna("N/A")
-                result.to_excel(writer, sheet_name='AMESCEBS_supersummary', index=True)
-
-              if sheet_name == 'AMESCEBS_summary':
-                for col in result.select_dtypes(include=['object']).columns:
-                  try:
-                    result[col] = result[col].astype(str)
-                  except Exception as e:
-                    print(f"Error converting column {col} in AMESCEBS_summary: {e}")
-                    result[col] = result[col].fillna("N/A")
-                result.to_excel(writer, sheet_name='AMESCEBS_summary', index=True)
-
-
-            elif isinstance(result, dict):  # Handle dictionaries of DataFrames (like for ECVAM)
-                          for sub_sheet_name, sub_result in result.items():
-                              if isinstance(sub_result, pd.DataFrame) and not sub_result.empty:
-                                  for col in sub_result.select_dtypes(include=['object']).columns:
-                                      try:
-                                          sub_result[col] = sub_result[col].astype(str)
-                                      except Exception as e:
-                                          print(f"Error converting column {col} in {sheet_name}: {e}")
-                                          sub_result[col] = sub_result[col].fillna("N/A")
-                                  sub_result.to_excel(writer, sheet_name=sub_sheet_name, index=True) #index=True to maintain the index in the excel file          
-
-
-            elif isinstance(result, pd.Series) and not result.empty: # Export Series
-              result.to_excel(writer, sheet_name=sheet_name, index=True)
-
-
-
-            elif isinstance(result, pd.DataFrame) and not result.empty: # Handle other DataFrames
-
-              for col in result.select_dtypes(include=['object']).columns:
-
-                try:
-
-                  result[col] = result[col].astype(str)
-
-                except Exception as e:
-
-                  print(f"Error converting column {col} in {sheet_name}: {e}")
-
-                  result[col] = result[col].fillna("N/A")
-
-              result.to_excel(writer, sheet_name=sheet_name, index=True)
-
-
-
-
-      output.seek(0)
-
-
-
-      response = HttpResponse(
-
-        output.getvalue(),
-
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-
-      )
-
-      response['Content-Disposition'] = f'attachment; filename="{cas_rn}_results.xlsx"'
-
-      return response
-
-    else:
-      return render(request, 'myapp/query.html', {'error_message': f"Invalid CAS number."})
-
-
-  return render(request, 'myapp/query.html')

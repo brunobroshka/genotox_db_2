@@ -1,9 +1,9 @@
 from django.urls import path
-from . import views
+from .views import ProcessAPIView, DownloadAPIView
 
 urlpatterns = [
-    path('query/', views.query_view, name='query_view'),
-    path('', views.query_view, name='root_query'),  # Default route for query view
+    path('api/process/', ProcessAPIView.as_view(), name='process_api'),
+    path('api/download/', DownloadAPIView.as_view(), name='download_api'),
 ]
 
 
